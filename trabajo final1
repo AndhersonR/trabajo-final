@@ -1,0 +1,402 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+public class CalculadoraSubredIP extends JFrame {
+    private JTextField campoIP;
+    private JTextField campoMascara;
+    private JTextArea areaSalida;
+
+    public CalculadoraSubredIP() {
+        setTitle("CALCULADORA DE IP");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        // Crear panel principal con GridBagLayout
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Color.GRAY);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(1, 15, 15, 15);
+
+        // Título
+        JLabel tituloLabel = new JLabel("CALCULADORA DE IP");
+        tituloLabel.setFont(new Font("Time New Roman", Font.BOLD, 25));
+        tituloLabel.setForeground(Color.BLACK);
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 3;
+        gbc.anchor = GridBagConstraints.CENTER;
+        panel.add(tituloLabel, gbc);
+
+        // Etiqueta y campo de dirección IP
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        panel.add(new JLabel("Dirección IP:"), gbc);
+
+        campoIP = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(campoIP, gbc);
+
+        // Etiqueta y campo de máscara de subred
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        panel.add(new JLabel("Máscara de Subred:"), gbc);
+
+        campoMascara = new JTextField(20);
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(campoMascara, gbc);
+
+        // Botón Calcular
+        JButton botonCalcular = new JButton("Calcular");
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.CENTER;
+        panel.add(botonCalcular, gbc);
+
+        // Botón Limpiar
+        JButton botonLimpiar = new JButton("Limpiar");
+        gbc.gridx = 1;
+        gbc.gridy = 3;
+        panel.add(botonLimpiar, gbc);
+
+        // Área de salida
+        areaSalida = new JTextArea(20, 50); // Aumenta el número de filas y columnas
+        areaSalida.setEditable(false);
+        areaSalida.setBorder(BorderFactory.createLineBorder(Color.YELLOW));
+        areaSalida.setBackground(Color.WHITE);
+        areaSalida.setLineWrap(true); // Permite que el texto se ajuste automáticamente al ancho del área
+        areaSalida.setWrapStyleWord(true); // Evita que las palabras se dividan al final de una línea
+        JScrollPane scrollPane = new JScrollPane(areaSalida); // Agrega una barra de desplazamiento
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS); // Siempre muestra la barra de desplazamiento vertical
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        panel.add(scrollPane, gbc);
+        
+        // Botón Ayuda
+        JButton botonAyuda = new JButton("Ayuda");
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(botonAyuda, gbc);
+
+        // Botón Copiar
+        JButton botonCopiar = new JButton("Copiar");
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.EAST;
+        panel.add(botonCopiar, gbc);
+
+        // Agregar action listeners
+        botonCalcular.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String direccionIP = campoIP.getText();
+                String mascaraSubred = campoMascara.getText();
+                try {
+                    if (!validarDireccionIP(direccionIP)) {
+                        throw new IllegalArgumentException("La dirección IP ingresada no es inválida. Asegúrate de que tenga el formato correcto (por ejemplo, 192.168.1.1) y que cada octeto esté entre 0 y 255.");
+                    }
+        
+                    if (!validarMascaraSubred(mascaraSubred)) {
+                        throw new IllegalArgumentException("La máscara de subred ingresada no es inválida. Asegúrate de que tenga el formato correcto (por ejemplo, 255.255.255.0) o que sea un número entre 0 y 32 en formato CIDR.");
+                    }
+        
+                    String resultado = calcularDetallesSubred(direccionIP, mascaraSubred);
+                    areaSalida.setText(resultado);
+                } catch (Exception ex) {
+                    areaSalida.setText("Error: " + ex.getMessage());
+                }
+            }
+        });
+
+        botonLimpiar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                campoIP.setText("");
+                campoMascara.setText("");
+                areaSalida.setText("");
+            }
+        });
+
+        botonAyuda.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String mensajeAyuda = "Para introducir la dirección IP y la máscara de subred correctamente, sigue estas pautas:\n\n" +
+                                      "1. Dirección IP: Debe ser una dirección IPv4 válida en formato decimal, por ejemplo, 192.168.1.1.\n" +
+                                      "2. Máscara de Subred: Puedes introducir la máscara de subred en formato CIDR (por ejemplo, 24) o en formato decimal separado por puntos (por ejemplo, 255.255.255.0).\n" +
+                                      "   Si introduces la máscara en formato CIDR, asegúrate de que el valor esté entre 0 y 32.\n" +
+                                      "   Si introduces la máscara en formato decimal separado por puntos, asegúrate de que cada octeto esté entre 0 y 255.\n\n" +
+                                      "Ejemplos válidos:\n" +
+                                      "Dirección IP: 192.168.1.1, Máscara de Subred: 24\n" +
+                                      "Dirección IP: 10.0.0.1, Máscara de Subred: 255.255.255.0";
+        
+                JOptionPane.showMessageDialog(panel, mensajeAyuda, "Ayuda", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+
+
+        botonCopiar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                StringSelection stringSelection = new StringSelection(areaSalida.getText());
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+            }
+        });
+
+        add(panel);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            CalculadoraSubredIP calculadora = new CalculadoraSubredIP();
+            calculadora.setVisible(true);
+        });
+    }
+    
+        private boolean validarDireccionIP(String direccionIP) {
+        String[] octetos = direccionIP.split("\\.");
+        if (octetos.length != 4) {
+            return false;
+        }
+        for (String octeto : octetos) {
+            try {
+                int valor = Integer.parseInt(octeto);
+                if (valor < 0 || valor > 255) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    private boolean validarMascaraSubred(String mascaraSubred) {
+        if (mascaraSubred.contains(".")) {
+            String[] octetos = mascaraSubred.split("\\.");
+            if (octetos.length != 4) {
+                return false;
+            }
+            for (String octeto : octetos) {
+                try {
+                    int valor = Integer.parseInt(octeto);
+                    if (valor < 0 || valor > 255) {
+                        return false;
+                    }
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            }
+        } else {
+            try {
+                int valor = Integer.parseInt(mascaraSubred);
+                if (valor < 0 || valor > 32) {
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    private String calcularDetallesSubred(String direccionIP, String mascaraSubred) throws UnknownHostException, IllegalArgumentException {
+        InetAddress direccionInet = InetAddress.getByName(direccionIP);
+        byte[] bytesDireccion = direccionInet.getAddress();
+
+        int[] direccion = new int[4];
+        for (int i = 0; i < 4; i++) {
+            direccion[i] = bytesDireccion[i] & 0xFF;
+        }
+
+        int mascara;
+        String formatoMascaraIP;
+        if (mascaraSubred.contains(".")) {
+            mascara = convertirMascaraACIDR(mascaraSubred);
+            formatoMascaraIP = mascaraSubred;
+        } else {
+            mascara = Integer.parseInt(mascaraSubred);
+            formatoMascaraIP = convertirCIDRAFormatoMascara(mascara);
+        }
+
+        if (mascara < 0 || mascara > 32) {
+            throw new IllegalArgumentException("Máscara de subred inválida: debe estar entre 0 y 32.");
+        }
+
+        int[] bytesMascara = calcularBytesMascara(mascara);
+        int[] mascaraComodin = calcularMascaraComodin(bytesMascara);
+        int[] direccionRed = calcularDireccionRed(direccion, bytesMascara);
+        int[] direccionBroadcast = calcularDireccionBroadcast(direccionRed, bytesMascara);
+        int numHosts = calcularNumHosts(mascara);
+        String claseIP = determinarClaseIP(direccion);
+        boolean esPrivada = esIPPrivada(direccion);
+
+        StringBuilder resultado = new StringBuilder();
+        resultado.append("Dirección:      \t").append(direccionIP).append("\t").append(aBinario(direccion)).append("\n");
+        resultado.append("Máscara:        \t").append(formatoMascaraIP).append(" = ").append(mascara).append("\t").append(aBinario(bytesMascara)).append("\n");
+        resultado.append("Máscara comodín:\t").append(aDireccion(mascaraComodin)).append("\t").append(aBinario(mascaraComodin)).append("\n");
+        resultado.append("=>\n");
+        resultado.append("Red:            \t").append(aDireccion(direccionRed)).append("/").append(mascara).append("\t").append(aBinario(direccionRed)).append("\n");
+        resultado.append(mascara).append("\t").append(aBinario(direccionRed)).append("\n");
+        resultado.append("HostMin:        \t").append(aDireccion(incrementarDireccion(direccionRed))).append("\t").append(aBinario(incrementarDireccion(direccionRed))).append("\n");
+        resultado.append("HostMax:        \t").append(aDireccion(decrementarDireccion(direccionBroadcast))).append("\t").append(aBinario(decrementarDireccion(direccionBroadcast))).append("\n");
+        resultado.append("Broadcast:      \t").append(aDireccion(direccionBroadcast)).append("\t").append(aBinario(direccionBroadcast)).append("\n");
+        resultado.append("Hosts/Red:      \t").append(numHosts).append("\t").append(claseIP).append(esPrivada ? ", Internet Privada" : ", Internet Pública").append("\n");
+
+        return resultado.toString();
+    }
+
+    private int convertirMascaraACIDR(String mascara) throws NumberFormatException {
+        String[] partesMascara = mascara.split("\\.");
+        if (partesMascara.length != 4) {
+            throw new NumberFormatException("Formato de máscara de subred inválido.");
+        }
+
+        int cidr = 0;
+        for (String parte : partesMascara) {
+            int valor = Integer.parseInt(parte);
+            if (valor < 0 || valor > 255) {
+                throw new NumberFormatException("Parte de la máscara de subred fuera de rango (0-255).");
+            }
+            while (valor > 0) {
+                valor &= valor - 1;
+                cidr++;
+            }
+        }
+        return cidr;
+    }
+
+    private String convertirCIDRAFormatoMascara(int cidr) {
+        int mascara = 0xffffffff << (32 - cidr);
+        return ((mascara >>> 24) & 0xFF) + "." +
+               ((mascara >>> 16) & 0xFF) + "." +
+               ((mascara >>> 8) & 0xFF) + "." +
+               (mascara & 0xFF);
+    }
+
+    private int[] calcularBytesMascara(int mascara) {
+        int[] bytesMascara = new int[4];
+        for (int i = 0; i < 4; i++) {
+            if (mascara >= 8) {
+                bytesMascara[i] = 255;
+                mascara -= 8;
+            } else {
+                bytesMascara[i] = (0xFF << (8 - mascara)) & 0xFF;
+                mascara = 0;
+            }
+        }
+        return bytesMascara;
+    }
+
+    private int[] calcularMascaraComodin(int[] bytesMascara) {
+        int[] mascaraComodin = new int[4];
+        for (int i = 0; i < 4; i++) {
+            mascaraComodin[i] = 255 - bytesMascara[i];
+        }
+        return mascaraComodin;
+    }
+
+    private int[] calcularDireccionRed(int[] direccion, int[] bytesMascara) {
+        int[] direccionRed = new int[4];
+        for (int i = 0; i < 4; i++) {
+            direccionRed[i] = direccion[i] & bytesMascara[i];
+        }
+        return direccionRed;
+    }
+
+    private int[] calcularDireccionBroadcast(int[] direccionRed, int[] bytesMascara) {
+        int[] direccionBroadcast = new int[4];
+        for (int i = 0; i < 4; i++) {
+            direccionBroadcast[i] = direccionRed[i] | (~bytesMascara[i] & 0xFF);
+        }
+        return direccionBroadcast;
+    }
+
+    private int calcularNumHosts(int mascara) {
+        return (int) Math.pow(2, 32 - mascara) - 2;
+    }
+
+    private String aBinario(int[] array) {
+        StringBuilder binario = new StringBuilder();
+        for (int i = 0; i < array.length; i++) {
+            binario.append(String.format("%8s", Integer.toBinaryString(array[i])).replace(' ', '0'));
+            if (i < array.length - 1) {
+                binario.append(".");
+            }
+        }
+        return binario.toString();
+    }
+
+    private String aDireccion(int[] array) {
+        StringBuilder direccion = new StringBuilder();
+        for (int i = 0; i < array.length; i++) {
+            direccion.append(array[i]);
+            if (i < array.length - 1) {
+                direccion.append(".");
+            }
+        }
+        return direccion.toString();
+    }
+
+    private String determinarClaseIP(int[] direccion) {
+        int primerOcteto = direccion[0];
+        if (primerOcteto >= 0 && primerOcteto <= 127) {
+            return "Clase A";
+        } else if (primerOcteto >= 128 && primerOcteto <= 191) {
+            return "Clase B";
+        } else if (primerOcteto >= 192 && primerOcteto <= 223) {
+            return "Clase C";
+        } else if (primerOcteto >= 224 && primerOcteto <= 239) {
+            return "Clase D (Multicast)";
+        } else {
+            return "Clase E (Experimental)";
+        }
+    }
+
+    private boolean esIPPrivada(int[] direccion) {
+        int primerOcteto = direccion[0];
+        int segundoOcteto = direccion[1];
+        return (primerOcteto == 10) ||
+               (primerOcteto == 172 && (segundoOcteto >= 16 && segundoOcteto <= 31)) ||
+               (primerOcteto == 192 && segundoOcteto == 168);
+    }
+
+    private int[] incrementarDireccion(int[] direccion) {
+        int[] nuevaDireccion = direccion.clone();
+        for (int i = nuevaDireccion.length - 1; i >= 0; i--) {
+            if (nuevaDireccion[i] < 255) {
+                nuevaDireccion[i]++;
+                break;
+            } else {
+                nuevaDireccion[i] = 0;
+            }
+        }
+        return nuevaDireccion;
+    }
+
+    private int[] decrementarDireccion(int[] direccion) {
+        int[] nuevaDireccion = direccion.clone();
+        for (int i = nuevaDireccion.length - 1; i >= 0; i--) {
+            if (nuevaDireccion[i] > 0) {
+                nuevaDireccion[i]--;
+                break;
+            } else {
+                nuevaDireccion[i] = 255;
+            }
+        }
+        return nuevaDireccion;
+    }
+}
